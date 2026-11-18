@@ -1,6 +1,6 @@
-﻿# Microsoft Office Inspectors for Fiddler
+﻿# Microsoft Office Inspectors for Clearinet (forked from Fiddler version)
 
-This README document provides the instruction on installing Microsoft Office Inspectors for Fiddler.
+This README document provides the instruction on installing Microsoft Office Inspectors for Clearinet.
 
 The MAPI Inspector evaluates the captured traffic between Outlook and Exchange; whereas the FSSHTTPandWOPI Inspector evaluates the captured traffic between client and SharePoint. These Microsoft Office Inspectors are able to display the protocol content in a user-friendly format. You may choose to install one or both inspectors.
 
