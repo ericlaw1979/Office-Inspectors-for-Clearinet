@@ -1,26 +1,32 @@
-﻿using Fiddler;
+﻿using Clearinet;
+using System.Windows.Forms;
 
 namespace MapiInspector
 {
-    /// <summary>
-    /// MAPI Response inspector derived from MAPIInspector and implemented Fiddler.IResponseInspector2
-    /// </summary>
-    public class MAPIResponseInspector : MAPIInspector, IResponseInspector2
+    public sealed class MAPIResponseInspector : ResponseInspectorBase
     {
-        /// <summary>
-        ///  Gets or sets the response headers from the frame
-        /// </summary>
-        public HTTPResponseHeaders headers
-        {
-            get
-            {
-                return MAPIParser.BaseHeaders as HTTPResponseHeaders;
-            }
+        private readonly MAPIInspector inspector = new MAPIInspector(MAPIParser.TrafficDirection.Out);
+        private Exchange exchange;
 
-            set
-            {
-                MAPIParser.BaseHeaders = value;
-            }
+        public override string TabTitle => "MAPI";
+        public override int GetOrder() => inspector.GetOrder();
+        public override byte[] body { get => inspector.body; set => inspector.body = value; }
+
+        public override void AddToTab(TabPage tab) => inspector.AddToTab(tab);
+        public override void Clear() => inspector.Clear();
+        public override int ScoreForExchange(Exchange exchange) => inspector.ScoreForExchange(exchange);
+
+        public override void Assign(HTTPResponseHeaders headers, byte[] body, bool readOnly)
+        {
+            this.headers = headers;
+            bReadOnly = readOnly;
+            inspector.AssignExchange(exchange, headers, body, readOnly);
+        }
+
+        public override void AssignExchange(Exchange exchange)
+        {
+            this.exchange = exchange;
+            base.AssignExchange(exchange);
         }
     }
 }

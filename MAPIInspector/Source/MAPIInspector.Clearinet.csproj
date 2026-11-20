@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <ProjectGuid>{F6AD8210-981D-42D9-B8FA-0970FD41DBE5}</ProjectGuid>
+    <TargetFramework>net481</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>MAPIInspector</RootNamespace>
+    <AssemblyName>CAE-MAPIInspector</AssemblyName>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateResourceUsePreserializedResources>false</GenerateResourceUsePreserializedResources>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ClearinetPath Condition="'$(ClearinetPath)' == ''">$(MSBuildThisFileDirectory)..\..\..\cin\Clearinet\bin\$(Configuration)</ClearinetPath>
+    <ClearinetExtensionsPath Condition="'$(ClearinetExtensionsPath)' == ''">$(MSBuildThisFileDirectory)..\..\..\cin\Extensions\bin\$(Configuration)</ClearinetExtensionsPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="BlockParserTests\**\*.cs" />
+    <Compile Remove="BlockParser\Properties\AssemblyInfo.cs" />
+    <EmbeddedResource Remove="BlockParserTests\**\*" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.403" PrivateAssets="all" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="System.Resources.Extensions" Version="9.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="System.Numerics" />
+    <Reference Include="System.Runtime.Serialization" />
+    <Reference Include="System.ServiceModel" />
+    <Reference Include="System.Web" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="Clearinet">
+      <HintPath>$(ClearinetPath)\Clearinet.exe</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="CAE-Default">
+      <HintPath>$(ClearinetExtensionsPath)\CAE-Default.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+  <PropertyGroup>
+    <PostBuildEvent>powershell -NoProfile -ExecutionPolicy Bypass -Command "$destDir = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'Clearinet\Extensions'; if (!(Test-Path $destDir)) { New-Item -ItemType Directory -Path $destDir -Force }; Copy-Item -Path '$(TargetDir)*.dll' -Destination $destDir -Force"</PostBuildEvent>
+  </PropertyGroup>
+  <Target Name="BeforeBuild">
+    <Error Text="Clearinet API assembly not found: $(ClearinetPath)\Clearinet.exe" Condition="!Exists('$(ClearinetPath)\Clearinet.exe')" />
+  </Target>
+</Project>

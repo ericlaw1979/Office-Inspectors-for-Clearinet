@@ -1,5 +1,5 @@
 using BlockParser;
-using Fiddler;
+using Clearinet;
 
 namespace MAPIInspector.Parsers
 {

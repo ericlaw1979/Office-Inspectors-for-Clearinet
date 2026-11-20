@@ -1,5 +1,6 @@
 using BlockParser;
-using Fiddler;
+using Clearinet;
+using Session = Clearinet.Exchange;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -40,11 +41,7 @@ namespace MAPIInspector.Parsers
             var tempServerObjectHandleTable = new List<BlockT<uint>>();
             int currentPosition = parser.Offset;
             parser.Advance(RopSize - sizeof(ushort));
-            int parsingSessionID = MapiInspector.MAPIParser.ParsingSession.id;
-            if (MapiInspector.MAPIParser.IsFromFiddlerCore(MapiInspector.MAPIParser.ParsingSession))
-            {
-                parsingSessionID = int.Parse(MapiInspector.MAPIParser.ParsingSession["VirtualID"]);
-            }
+            int parsingSessionID = checked((int)MapiInspector.MAPIParser.ParsingSession.id);
 
             while (parser.RemainingBytes >= sizeof(uint))
             {

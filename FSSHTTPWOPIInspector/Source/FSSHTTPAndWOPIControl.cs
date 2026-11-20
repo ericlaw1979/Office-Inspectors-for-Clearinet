@@ -22,7 +22,7 @@ namespace FSSHTTPandWOPIInspector
             }
         }
 
-        public HexBox FSSHTTPandWOPIHexBox
+        public HttpHexBox FSSHTTPandWOPIHexBox
         {
             get
             {

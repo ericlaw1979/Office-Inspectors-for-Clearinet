@@ -1,5 +1,6 @@
 using System.Diagnostics;
-using Fiddler;
+using Clearinet;
+using Session = Clearinet.Exchange;
 
 [assembly: DebuggerTypeProxy(typeof(MapiInspector.SessionDebugView), Target = typeof(Session))]
 [assembly: DebuggerTypeProxy(typeof(MapiInspector.SessionArrayDebugView), Target = typeof(Session[]))]
@@ -16,7 +17,7 @@ namespace MapiInspector
         {
             _session = session;
         }
-        public int Id => _session.id;
+        public long Id => _session.id;
         public string RequestPath => _session.RequestHeaders?.RequestPath;
         public string LocalProcess => _session.LocalProcess;
         public string ClientInfo => _session.RequestHeaders?["X-ClientInfo"];

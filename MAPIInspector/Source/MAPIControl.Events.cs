@@ -1,4 +1,4 @@
-using Fiddler;
+using Clearinet;
 using MAPIInspector.Parsers;
 using System;
 using System.Text;
@@ -52,10 +52,10 @@ namespace MapiInspector
             AttachHexBoxKeyboardHandler(cropsHexBox);
         }
 
-        private void CopyMethod(object sender, EventArgs e, Be.Windows.Forms.HexBox hexBox)
+        private void CopyMethod(object sender, EventArgs e, Be.Windows.Forms.HttpHexBox hexBox)
         {
             byte[] targetBytes = new byte[hexBox.SelectionLength];
-            Array.Copy(hexBox.GetAllBytes(), hexBox.SelectionStart, targetBytes, 0, hexBox.SelectionLength);
+            Array.Copy(hexBox.ByteProvider.GetAllBytes(), hexBox.SelectionStart, targetBytes, 0, hexBox.SelectionLength);
             string hex = BitConverter.ToString(targetBytes).Replace("-", string.Empty);
             if (!string.IsNullOrEmpty(hex))
             {
@@ -129,7 +129,7 @@ namespace MapiInspector
         private void HexBox_CopyWithSpaces_Click(object sender, EventArgs e)
         {
             byte[] targetBytes = new byte[mapiHexBox.SelectionLength];
-            Array.Copy(mapiHexBox.GetAllBytes(), mapiHexBox.SelectionStart, targetBytes, 0, mapiHexBox.SelectionLength);
+            Array.Copy(mapiHexBox.ByteProvider.GetAllBytes(), mapiHexBox.SelectionStart, targetBytes, 0, mapiHexBox.SelectionLength);
 
             StringBuilder sb = new StringBuilder();
             int counter = 0;
@@ -146,7 +146,7 @@ namespace MapiInspector
         private void HexBox_Copy16ByteBlocks_Click(object sender, EventArgs e)
         {
             byte[] targetBytes = new byte[mapiHexBox.SelectionLength];
-            Array.Copy(mapiHexBox.GetAllBytes(), mapiHexBox.SelectionStart, targetBytes, 0, mapiHexBox.SelectionLength);
+            Array.Copy(mapiHexBox.ByteProvider.GetAllBytes(), mapiHexBox.SelectionStart, targetBytes, 0, mapiHexBox.SelectionLength);
 
             StringBuilder sb = new StringBuilder();
             int counter = 0;
@@ -165,7 +165,7 @@ namespace MapiInspector
         private void HexBox_Copy16ByteBlocksWithPrefix_Click(object sender, EventArgs e)
         {
             byte[] targetBytes = new byte[mapiHexBox.SelectionLength];
-            Array.Copy(mapiHexBox.GetAllBytes(), mapiHexBox.SelectionStart, targetBytes, 0, mapiHexBox.SelectionLength);
+            Array.Copy(mapiHexBox.ByteProvider.GetAllBytes(), mapiHexBox.SelectionStart, targetBytes, 0, mapiHexBox.SelectionLength);
 
             StringBuilder sb = new StringBuilder();
             sb.AppendLine("POSITION | 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F");
@@ -191,7 +191,7 @@ namespace MapiInspector
         private void HexBox_CopyAsCodeBlock_Click(object sender, EventArgs e)
         {
             byte[] targetBytes = new byte[mapiHexBox.SelectionLength];
-            Array.Copy(mapiHexBox.GetAllBytes(), mapiHexBox.SelectionStart, targetBytes, 0, mapiHexBox.SelectionLength);
+            Array.Copy(mapiHexBox.ByteProvider.GetAllBytes(), mapiHexBox.SelectionStart, targetBytes, 0, mapiHexBox.SelectionLength);
 
             StringBuilder sb = new StringBuilder("byte[] arrOutput = { ");
             int counter = 0;
@@ -313,7 +313,7 @@ namespace MapiInspector
             var searchText = searchTextBox.Text.Trim();
             if (string.IsNullOrEmpty(searchText) || searchText == SearchDefaultText) return;
 
-            FiddlerApplication.UI.SetStatusText($"Searching for {searchText}");
+            CApp.UI.SetStatusText($"Searching for {searchText}");
             var includeRoot = false; // Don't include the currently selected node for a seach
             var startNode = mapiTreeView?.SelectedNode;
             if (startNode == null && mapiTreeView?.Nodes.Count > 0)
@@ -355,8 +355,8 @@ namespace MapiInspector
                         : FindNextNode(rootNode.Nodes, node, searchText, true, includeRoot);
                     if (foundMatch != null)
                     {
-                        FiddlerApplication.UI.SelectSessionsMatchingCriteria(s => s.id == nextSession.id);
-                        nextSession.ViewItem.EnsureVisible();
+                        CApp.UI.actSelectExchangesMatchingCriteria(exchange => exchange.id == nextSession.id);
+                        CApp.UI.GetFirstSelectedExchange()?.ViewItem?.EnsureVisible();
                         return;
                     }
 
@@ -364,7 +364,7 @@ namespace MapiInspector
                 }
             }
 
-            FiddlerApplication.UI.SetStatusText("No match found");
+            CApp.UI.SetStatusText("No match found");
         }
 
         // Find next node (downwards, wraps around)
@@ -448,7 +448,7 @@ namespace MapiInspector
             return result;
         }
 
-        private void AttachHexBoxKeyboardHandler(Be.Windows.Forms.HexBox hexBox)
+        private void AttachHexBoxKeyboardHandler(Be.Windows.Forms.HttpHexBox hexBox)
         {
             hexBox.KeyDown += (sender, e) =>
             {

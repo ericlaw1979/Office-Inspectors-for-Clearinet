@@ -1,40 +1,33 @@
-﻿using System;
-using System.Windows.Forms;
-using Fiddler;
+﻿using Clearinet;
+using System;
 using System.Collections.Generic;
-using MapiInspector;
 
-[ProfferFormat("MAPI", "Parsed MAPI frames")]
-public class MAPIExporter : ISessionExporter
+namespace MapiInspector
 {
-    public bool ExportSessions(string sFormat, Session[] oSessions, Dictionary<string, object> dictOptions,
-        EventHandler<ProgressCallbackEventArgs> evtProgressNotifications)
+    [OfferFormat("MAPI", "Parsed MAPI exchanges")]
+    public sealed class MAPIExporter : IExchangeExporter
     {
-        bool result;
-
-        string filePath = null;
-        if (null != dictOptions && dictOptions.ContainsKey("FilePath"))
+        public bool ExportExchanges(string format, Exchange[] exchanges, Dictionary<string, object> options,
+            EventHandler<ProgressEventArgs> progress)
         {
-            filePath = dictOptions["FilePath"] as string;
+            string filePath = options != null && options.TryGetValue("FilePath", out object value) ? value as string : null;
+            if (string.IsNullOrEmpty(filePath))
+            {
+                filePath = Clearinet.Utilities.ObtainSaveFilename("Export As " + format, "JSON File (*.json)|*.json");
+            }
+            if (string.IsNullOrEmpty(filePath)) return false;
+
+            try
+            {
+                return MAPIParser.ParseCaptureFile(exchanges, filePath);
+            }
+            catch (Exception ex)
+            {
+                CApp.ReportException(ex, "MAPI export failed");
+                return false;
+            }
         }
 
-        if (string.IsNullOrEmpty(filePath)) filePath = Fiddler.Utilities.ObtainSaveFilename("Export As " + sFormat, "JSON File (*.json)|*.json");
-
-        if (string.IsNullOrEmpty(filePath)) return false;
-
-        try
-        {
-            MAPIParser.ParseCaptureFile(oSessions, filePath);
-            result = true;
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show(ex.Message, "Failed to export");
-            result = false;
-        }
-
-        return result;
+        public void Dispose() { }
     }
-
-    public void Dispose() { }
 }

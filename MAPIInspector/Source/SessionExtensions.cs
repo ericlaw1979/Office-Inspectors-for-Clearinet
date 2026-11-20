@@ -1,4 +1,5 @@
-using Fiddler;
+using Clearinet;
+using Session = Clearinet.Exchange;
 
 namespace MapiInspector
 {

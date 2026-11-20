@@ -1,4 +1,4 @@
-using BlockParser;
+﻿using BlockParser;
 
 namespace MAPIInspector.Parsers
 {
@@ -66,21 +66,10 @@ namespace MAPIInspector.Parsers
             DataOffset = ParseT<uint>();
             DataSize = ParseT<ushort>();
             Data = ParseBytes(DataSize);
-            if (!MapiInspector.MAPIParser.IsFromFiddlerCore(MapiInspector.MAPIParser.ParsingSession))
+            if (DataOffset == 0 &&
+                (((byte)DecodingContext.SessionLogonFlagMapLogId[MapiInspector.MAPIParser.GetSessionId(MapiInspector.MAPIParser.ParsingSession)][LogonId] & (byte)LogonFlags.Private) == (byte)LogonFlags.Private))
             {
-                if (DataOffset == 0 &&
-                    (((byte)DecodingContext.SessionLogonFlagMapLogId[MapiInspector.MAPIParser.ParsingSession.id][LogonId] & (byte)LogonFlags.Private) == (byte)LogonFlags.Private))
-                {
-                    ReplGuid = Parse<BlockGuid>();
-                }
-            }
-            else
-            {
-                if (DataOffset == 0 &&
-                    (((byte)DecodingContext.SessionLogonFlagMapLogId[int.Parse(MapiInspector.MAPIParser.ParsingSession["VirtualID"])][LogonId] & (byte)LogonFlags.Private) == (byte)LogonFlags.Private))
-                {
-                    ReplGuid = Parse<BlockGuid>();
-                }
+                ReplGuid = Parse<BlockGuid>();
             }
         }
 

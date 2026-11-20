@@ -225,11 +225,7 @@ namespace MAPIInspector.Parsers
                 {
                     TableRowDataSize = ParseT<ushort>();
 
-                    int parsingSessionID = MapiInspector.MAPIParser.ParsingSession.id;
-                    if (MapiInspector.MAPIParser.IsFromFiddlerCore(MapiInspector.MAPIParser.ParsingSession))
-                    {
-                        parsingSessionID = int.Parse(MapiInspector.MAPIParser.ParsingSession["VirtualID"]);
-                    }
+                    int parsingSessionID = checked((int)MapiInspector.MAPIParser.ParsingSession.id);
                     if (DecodingContext.Notify_handlePropertyTags.Count > 0 && DecodingContext.Notify_handlePropertyTags.ContainsKey(notificationHandle) && DecodingContext.Notify_handlePropertyTags[notificationHandle].ContainsKey(parsingSessionID)
                         && DecodingContext.Notify_handlePropertyTags[notificationHandle][parsingSessionID].Item1 == MapiInspector.MAPIParser.ParsingSession.RequestHeaders.RequestPath
                         && DecodingContext.Notify_handlePropertyTags[notificationHandle][parsingSessionID].Item2 == MapiInspector.MAPIParser.ParsingSession.LocalProcess

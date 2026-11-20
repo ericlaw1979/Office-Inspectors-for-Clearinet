@@ -1,7 +1,8 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using Fiddler;
+using Clearinet;
+using Session = Clearinet.Exchange;
 
 namespace MapiInspector
 {
@@ -16,7 +17,7 @@ namespace MapiInspector
         /// </summary>
         private Session[] inputSessions;
         private Session[] sessions;
-        private Dictionary<int, int> idToIndex;
+        private Dictionary<long, int> idToIndex;
 
         /// <summary>
         /// Updates the session list and reinitializes the navigation structures.
@@ -34,17 +35,17 @@ namespace MapiInspector
             if (sessions != null && idToIndex != null)
                 return;
 
-            var source = inputSessions ?? FiddlerApplication.UI.GetAllSessions();
+            var source = inputSessions ?? CApp.UI.GetAllExchanges();
             if (source == null || source.Length == 0)
             {
                 sessions = new Session[0];
-                idToIndex = new Dictionary<int, int>();
+                idToIndex = new Dictionary<long, int>();
                 return;
             }
 
             Array.Sort(source, (p1, p2) => p1.id.CompareTo(p2.id));
             sessions = new Session[source.Length];
-            idToIndex = new Dictionary<int, int>();
+            idToIndex = new Dictionary<long, int>();
             for (int i = 0; i < source.Length; i++)
             {
                 var s = source[i];

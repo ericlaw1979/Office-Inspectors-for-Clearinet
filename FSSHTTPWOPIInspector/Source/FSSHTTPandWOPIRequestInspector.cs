@@ -1,27 +1,31 @@
-﻿using Fiddler;
+﻿using Clearinet;
+using System.Windows.Forms;
 
 namespace FSSHTTPandWOPIInspector
 {
-
-    /// <summary>
-    /// FSSHTTPandWOPI Request inspector derived from FSSHTTPandWOPIInspector and implemented Fiddler.IResponseInspector2
-    /// </summary>
-    public class FSSHTTPandWOPIRequestInspector : FSSHTTPandWOPIInspector, IRequestInspector2
+    public sealed class FSSHTTPandWOPIRequestInspector : RequestInspectorBase
     {
-        /// <summary>
-        /// Gets or sets the request headers from the frame
-        /// </summary>
-        public HTTPRequestHeaders headers
-        {
-            get
-            {
-                return this.BaseHeaders as HTTPRequestHeaders;
-            }
+        private readonly FSSHTTPandWOPIInspector inspector = new FSSHTTPandWOPIInspector(FSSHTTPandWOPIInspector.TrafficDirection.In);
 
-            set
-            {
-                this.BaseHeaders = value;
-            }
+        public override string TabTitle => "FSSHTTPandWOPI";
+        public override int GetOrder() => inspector.GetOrder();
+        public override byte[] body { get => inspector.body; set => inspector.body = value; }
+
+        public override void AddToTab(TabPage tab) => inspector.AddToTab(tab);
+        public override void Clear() => inspector.Clear();
+        public override int ScoreForExchange(Exchange exchange) => inspector.ScoreForExchange(exchange);
+
+        public override void Assign(HTTPRequestHeaders headers, byte[] body, bool readOnly)
+        {
+            this.headers = headers;
+            bReadOnly = readOnly;
+            inspector.Assign(headers, body, readOnly);
+        }
+
+        public override void AssignExchange(Exchange exchange)
+        {
+            inspector.session = exchange;
+            base.AssignExchange(exchange);
         }
     }
 }

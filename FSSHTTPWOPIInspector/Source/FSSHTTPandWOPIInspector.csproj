@@ -9,8 +9,9 @@
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>FSSHTTPandWOPIInspector</RootNamespace>
-    <AssemblyName>FSSHTTPandWOPIFiddlerInspector</AssemblyName>
-    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+    <AssemblyName>CAE-FSSHTTPWOPIInspector</AssemblyName>
+    <TargetFrameworkVersion>v4.8.1</TargetFrameworkVersion>
+    <LangVersion>latest</LangVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
     <FileUpgradeFlags>
@@ -43,12 +44,9 @@
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
   <PropertyGroup>
-    <FiddlerPath Condition="$(FiddlerPath) == '' AND Exists('$(LocalAppData)\Programs\Fiddler\Fiddler.exe')">$(LocalAppData)\Programs\Fiddler</FiddlerPath>
-    <FiddlerPath Condition="$(FiddlerPath) == '' AND Exists('$(ProgramFiles)\Fiddler2\Fiddler.exe')">$(ProgramFiles)\Fiddler2</FiddlerPath>
+    <ClearinetPath Condition="$(ClearinetPath) == ''">$(MSBuildThisFileDirectory)..\..\..\cin\Clearinet\bin\$(Configuration)</ClearinetPath>
+    <ClearinetExtensionsPath Condition="$(ClearinetExtensionsPath) == ''">$(MSBuildThisFileDirectory)..\..\..\cin\Extensions\bin\$(Configuration)</ClearinetExtensionsPath>
   </PropertyGroup>
-  <Target Name="LogFiddlerPath" BeforeTargets="Build">
-    <Message Text="FiddlerPath: $(FiddlerPath)" Importance="High" />
-  </Target>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
@@ -94,14 +92,6 @@
     <StartupObject />
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Be.Windows.Forms.HexBox">
-      <HintPath>$(FiddlerPath)\Be.Windows.Forms.HexBox.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="Fiddler">
-      <HintPath>$(FiddlerPath)\Fiddler.exe</HintPath>
-      <Private>False</Private>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Configuration" />
     <Reference Include="System.Core">
@@ -118,6 +108,16 @@
     <Reference Include="System.Data" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="Clearinet">
+      <HintPath>$(ClearinetPath)\Clearinet.exe</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="CAE-Default">
+      <HintPath>$(ClearinetExtensionsPath)\CAE-Default.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="FSSHTTPAndWOPIControl.cs">
@@ -165,12 +165,9 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>start "CopyDLLs" /B /wait start xcopy "$(SolutionDir)$(OutDir)*.*" "$(FiddlerPath)\Inspectors" /Q /Y</PostBuildEvent>
-  </PropertyGroup>
-  <PropertyGroup>
-    <PreBuildEvent>taskkill /im fiddler.exe /t /f 2&gt;&amp;1 | exit /B 0</PreBuildEvent>
+    <PostBuildEvent>powershell -NoProfile -ExecutionPolicy Bypass -Command "$destDir = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'Clearinet\Extensions'; if (!(Test-Path $destDir)) { New-Item -ItemType Directory -Path $destDir -Force }; Copy-Item -Path '$(TargetDir)*.dll' -Destination $destDir -Force"</PostBuildEvent>
   </PropertyGroup>
   <Target Name="BeforeBuild">
-    <Error Text="Unable to find Fiddler installation" Condition="$(FiddlerPath) == ''" />
+    <Error Text="Clearinet API assembly not found: $(ClearinetPath)\Clearinet.exe" Condition="!Exists('$(ClearinetPath)\Clearinet.exe')" />
   </Target>
 </Project>

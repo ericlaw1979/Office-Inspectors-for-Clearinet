@@ -1,4 +1,4 @@
-using BlockParser;
+﻿using BlockParser;
 
 namespace MAPIInspector.Parsers
 {
@@ -41,14 +41,7 @@ namespace MAPIInspector.Parsers
             if (ReturnValue == ErrorCodes.Success)
             {
                 PropertyTag[] propTags = new PropertyTag[0];
-                if (!MapiInspector.MAPIParser.IsFromFiddlerCore(MapiInspector.MAPIParser.ParsingSession))
-                {
-                    propTags = DecodingContext.GetPropertiesSpec_propertyTags[MapiInspector.MAPIParser.ParsingSession.id][InputHandleIndex].Dequeue();
-                }
-                else
-                {
-                    propTags = DecodingContext.GetPropertiesSpec_propertyTags[int.Parse(MapiInspector.MAPIParser.ParsingSession["VirtualID"])][InputHandleIndex].Dequeue();
-                }
+                propTags = DecodingContext.GetPropertiesSpec_propertyTags[MapiInspector.MAPIParser.GetSessionId(MapiInspector.MAPIParser.ParsingSession)][InputHandleIndex].Dequeue();
 
                 RowData = new PropertyRow(propTags, PropertyCountContext.RopBuffers);
                 RowData.Parse(parser);

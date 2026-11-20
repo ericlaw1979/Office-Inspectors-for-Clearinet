@@ -27,12 +27,12 @@ namespace MapiInspector
         /// <summary>
         /// Gets mapiHexBox
         /// </summary>
-        public HexBox MAPIHexBox => this.mapiHexBox;
+        public HttpHexBox MAPIHexBox => this.mapiHexBox;
 
         /// <summary>
         /// Gets cropsHexBox
         /// </summary>
-        public HexBox CROPSHexBox => this.cropsHexBox;
+        public HttpHexBox CROPSHexBox => this.cropsHexBox;
 
         /// <summary>
         /// Gets splitContainer

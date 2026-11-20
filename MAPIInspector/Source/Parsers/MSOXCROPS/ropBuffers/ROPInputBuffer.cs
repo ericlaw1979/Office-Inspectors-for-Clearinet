@@ -1,5 +1,6 @@
-using BlockParser;
-using Fiddler;
+﻿using BlockParser;
+using Clearinet;
+using Session = Clearinet.Exchange;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -39,11 +40,7 @@ namespace MAPIInspector.Parsers
             var serverObjectHandleTable = new List<BlockT<uint>>();
             var ropRemainSize = new List<uint>();
             var tempServerObjectHandleTable = new List<uint>();
-            int parsingSessionID = MapiInspector.MAPIParser.ParsingSession.id;
-            if (MapiInspector.MAPIParser.IsFromFiddlerCore(MapiInspector.MAPIParser.ParsingSession))
-            {
-                parsingSessionID = int.Parse(MapiInspector.MAPIParser.ParsingSession["VirtualID"]);
-            }
+            int parsingSessionID = checked((int)MapiInspector.MAPIParser.ParsingSession.id);
             int currentPosition = parser.Offset;
             parser.Advance(RopSize - sizeof(ushort));
 
@@ -331,74 +328,6 @@ namespace MAPIInspector.Parsers
                                             tuples = new Tuple<string, string, string, PropertyTag[], string>(MapiInspector.MAPIParser.ParsingSession.RequestHeaders.RequestPath, MapiInspector.MAPIParser.ParsingSession.LocalProcess, MapiInspector.MAPIParser.ParsingSession.RequestHeaders["X-ClientInfo"], ropSetColumnsRequest.PropertyTags, string.Empty);
                                             sessionTuples.Add(parsingSessionID, tuples);
                                             DecodingContext.Notify_handlePropertyTags.Add(handle_SetColumns, sessionTuples);
-                                        }
-                                    }
-                                }
-                                else if (MapiInspector.MAPIParser.IsFromFiddlerCore(MapiInspector.MAPIParser.ParsingSession))
-                                {
-                                    if (MapiInspector.MAPIParser.ParsingSession["X-ResponseCode"] == "0")
-                                    {
-                                        uint outputHandle;
-
-                                        try
-                                        {
-                                            MapiInspector.MAPIParser.IsOnlyGetServerHandle = true;
-                                            outputHandle = MapiInspector.MAPIParser.ParseResponseMessageSimply(MapiInspector.MAPIParser.ParsingSession, ropSetColumnsRequest.InputHandleIndex);
-                                        }
-                                        finally
-                                        {
-                                            MapiInspector.MAPIParser.IsOnlyGetServerHandle = false;
-                                        }
-
-                                        if (MapiInspector.MAPIParser.TargetHandle.Count > 0)
-                                        {
-                                            var target = MapiInspector.MAPIParser.TargetHandle.Peek();
-
-                                            if (target.First().Key == RopIdType.RopQueryRows ||
-                                                target.First().Key == RopIdType.RopFindRow ||
-                                                target.First().Key == RopIdType.RopExpandRow)
-                                            {
-                                                // This is for Row related rops
-                                                var sessionTuples = new Dictionary<int, Tuple<string, string, string, PropertyTag[]>>();
-                                                Tuple<string, string, string, PropertyTag[]> tuples;
-
-                                                if (DecodingContext.RowRops_handlePropertyTags.ContainsKey(outputHandle))
-                                                {
-                                                    sessionTuples = DecodingContext.RowRops_handlePropertyTags[outputHandle];
-                                                    DecodingContext.RowRops_handlePropertyTags.Remove(outputHandle);
-
-                                                    if (sessionTuples.ContainsKey(parsingSessionID))
-                                                    {
-                                                        sessionTuples.Remove(parsingSessionID);
-                                                    }
-                                                }
-
-                                                tuples = new Tuple<string, string, string, PropertyTag[]>(MapiInspector.MAPIParser.ParsingSession.RequestHeaders.RequestPath, MapiInspector.MAPIParser.ParsingSession.LocalProcess, MapiInspector.MAPIParser.ParsingSession.RequestHeaders["X-ClientInfo"], ropSetColumnsRequest.PropertyTags);
-                                                sessionTuples.Add(parsingSessionID, tuples);
-                                                DecodingContext.RowRops_handlePropertyTags.Add(outputHandle, sessionTuples);
-                                            }
-
-                                            if (target.First().Key == RopIdType.RopNotify)
-                                            {
-                                                // This is for ROPNotify
-                                                var sessionTuples = new Dictionary<int, Tuple<string, string, string, PropertyTag[], string>>();
-                                                Tuple<string, string, string, PropertyTag[], string> tuples;
-
-                                                if (DecodingContext.Notify_handlePropertyTags.ContainsKey(outputHandle))
-                                                {
-                                                    sessionTuples = DecodingContext.Notify_handlePropertyTags[outputHandle];
-                                                    DecodingContext.Notify_handlePropertyTags.Remove(outputHandle);
-
-                                                    if (sessionTuples.ContainsKey(parsingSessionID))
-                                                    {
-                                                        sessionTuples.Remove(parsingSessionID);
-                                                    }
-                                                }
-
-                                                tuples = new Tuple<string, string, string, PropertyTag[], string>(MapiInspector.MAPIParser.ParsingSession.RequestHeaders.RequestPath, MapiInspector.MAPIParser.ParsingSession.LocalProcess, MapiInspector.MAPIParser.ParsingSession.RequestHeaders["X-ClientInfo"], ropSetColumnsRequest.PropertyTags, string.Empty);
-                                                sessionTuples.Add(parsingSessionID, tuples);
-                                                DecodingContext.Notify_handlePropertyTags.Add(outputHandle, sessionTuples);
-                                            }
                                         }
                                     }
                                 }

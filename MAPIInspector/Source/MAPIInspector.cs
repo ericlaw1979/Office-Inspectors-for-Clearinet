@@ -5,7 +5,7 @@ using System.Text;
 using System.Windows.Forms;
 using Be.Windows.Forms;
 using BlockParser;
-using Fiddler;
+using Clearinet;
 using MAPIInspector.Parsers;
 using static MapiInspector.MAPIParser;
 
@@ -14,8 +14,15 @@ namespace MapiInspector
     /// <summary>
     /// MAPIInspector Class
     /// </summary>
-    public abstract class MAPIInspector : Inspector2
+    public class MAPIInspector
     {
+        private readonly TrafficDirection direction;
+
+        public MAPIInspector(TrafficDirection direction)
+        {
+            this.direction = direction;
+        }
+
         /// <summary>
         /// The JsonResult is used to save the Json string which converted by parse result
         /// </summary>
@@ -54,20 +61,7 @@ namespace MapiInspector
         /// <summary>
         /// Gets the direction of the traffic
         /// </summary>
-        public TrafficDirection Direction
-        {
-            get
-            {
-                if (this is IRequestInspector2)
-                {
-                    return TrafficDirection.In;
-                }
-                else
-                {
-                    return TrafficDirection.Out;
-                }
-            }
-        }
+        public TrafficDirection Direction => direction;
 
         /// <summary>
         /// Gets a value indicating whether the message is MAPI protocol message.
@@ -76,60 +70,29 @@ namespace MapiInspector
         {
             get
             {
-                if (session != null)
+                if (session == null) return false;
+                if (Direction == TrafficDirection.In)
                 {
-                    if (this is IRequestInspector2)
-                    {
-                        return session.RequestHeaders.ExistsAndContains("Content-Type", "application/mapi-http");
-                    }
-                    else if ((this is IResponseInspector2) && session.id != 0)
-                    {
-                        if ((this is IResponseInspector2) && session.ResponseHeaders.Exists("X-ResponseCode"))
-                        {
-                            string responseCode = session.ResponseHeaders["X-ResponseCode"];
-                            if (responseCode == "0")
-                            {
-                                return session.ResponseHeaders.ExistsAndContains("Content-Type", "application/mapi-http");
-                            }
-                            else if (responseCode != string.Empty)
-                            {
-                                return session.ResponseHeaders.ExistsAndContains("Content-Type", "text/html");
-                            }
-                        }
-                    }
-                    else if ((this is IResponseInspector2) && session["X-ResponseCode"] != null)
-                    {
-                        string responseCode = session["X-ResponseCode"];
-                        if (responseCode == "0")
-                        {
-                            return session["Content-Type"] != null && session["Content-Type"] == "application/mapi-http";
-                        }
-                        else if (responseCode != string.Empty)
-                        {
-                            return session["Content-Type"] != null && session["Content-Type"] == "text/html";
-                        }
-                    }
+                    return session.RequestHeaders.ExistsAndContains("Content-Type", "application/mapi-http");
                 }
 
-                return false;
+                string responseCode = session.ResponseHeaders["X-ResponseCode"];
+                if (responseCode == "0")
+                {
+                    return session.ResponseHeaders.ExistsAndContains("Content-Type", "application/mapi-http");
+                }
+                return responseCode.Length != 0 && session.ResponseHeaders.ExistsAndContains("Content-Type", "text/html");
             }
         }
 
-        /// <summary>
-        /// Gets or sets the Session object to pull frame data from Fiddler.
-        /// </summary>
-        internal Session session { get; set; }
+        internal Exchange session { get; set; }
 
         /// <summary>
         /// Gets or sets the raw bytes from the frame
         /// </summary>
         private byte[] rawBody { get; set; }
 
-        /// <summary>
-        /// Called by Fiddler to add the MAPI inspector tab
-        /// </summary>
-        /// <param name="o">The tab control for the inspector</param>
-        public override void AddToTab(TabPage o)
+        public void AddToTab(TabPage o)
         {
             o.Text = "MAPI";
             MAPIControl = new MAPIControl();
@@ -141,9 +104,7 @@ namespace MapiInspector
             MAPIControl.MAPIHexBox.VScrollBarVisible = true;
             MAPIViewControl.AfterSelect -= TreeView_AfterSelect;
             MAPIViewControl.AfterSelect += TreeView_AfterSelect;
-            DecodingContext dc = new DecodingContext();
-            FiddlerApplication.OnLoadSAZ += AfterCallDoImport;
-            FiddlerApplication.AfterSessionComplete += (Session oSession) => SessionExtensions.AllSessionsNavigator.Init();
+            ResetParserState();
         }
 
         /// <summary>
@@ -205,7 +166,7 @@ namespace MapiInspector
         /// Method that returns a sorting hint
         /// </summary>
         /// <returns>An integer indicating where we should order ourselves</returns>
-        public override int GetOrder()
+        public int GetOrder()
         {
             return 0;
         }
@@ -223,52 +184,20 @@ namespace MapiInspector
             MAPIControl.SplitContainer.Panel2Collapsed = true;
         }
 
-        /// <summary>
-        /// Called by Fiddler to determine how confident this inspector is that it can
-        /// decode the data.  This is only called when the user hits enter or double-
-        /// clicks a session.
-        /// If we score the highest out of the other inspectors, Fiddler will open this
-        /// inspector's tab and then call AssignSession.
-        /// </summary>
-        /// <param name="oS">the session object passed by Fiddler</param>
-        /// <returns>Int between 0-100 with 100 being the most confident</returns>
-        public override int ScoreForSession(Session oS)
+        public int ScoreForExchange(Exchange exchange)
         {
-            if (null == session)
-            {
-                session = oS;
-            }
-
-            if (null == BaseHeaders)
-            {
-                if (this is IRequestInspector2)
-                {
-                    BaseHeaders = session.oRequest.headers;
-                }
-                else
-                {
-                    BaseHeaders = session.oResponse.headers;
-                }
-            }
-
-            if (IsMapihttp)
-            {
-                return 100;
-            }
-            else
-            {
-                return 0;
-            }
+            session = exchange;
+            BaseHeaders = Direction == TrafficDirection.In ? exchange.RequestHeaders : exchange.ResponseHeaders;
+            return IsMapihttp ? 100 : 0;
         }
 
-        /// <summary>
-        /// This is called every time this inspector is shown
-        /// </summary>
-        /// <param name="oS">Session object passed by Fiddler</param>
-        public override void AssignSession(Session oS)
+        public void AssignExchange(Exchange exchange, HTTPHeaders headers, byte[] body, bool readOnly)
         {
-            session = oS;
-            base.AssignSession(oS);
+            session = exchange;
+            BaseHeaders = headers;
+            bReadOnly = readOnly;
+            ResetParserState();
+            this.body = body;
         }
 
         /// <summary>
@@ -329,12 +258,7 @@ namespace MapiInspector
             }
         }
 
-        /// <summary>
-        /// Reset public parameters.
-        /// </summary>
-        /// <param name="sender">The source of the event</param>
-        /// <param name="e">A EventArgs that contains the event data.</param>
-        public void AfterCallDoImport(object sender, EventArgs e)
+        private void ResetParserState()
         {
             ResetHandleInformation();
             Partial.ResetPartialContextInformation();
@@ -354,6 +278,12 @@ namespace MapiInspector
         /// </summary>
         private void UpdateView()
         {
+            if (MAPIControl != null && MAPIControl.InvokeRequired)
+            {
+                CApp.UIInvokeAsync(UpdateView);
+                return;
+            }
+
             Clear();
             SessionExtensions.AllSessionsNavigator.Init();
             byte[] bytesForHexView;
@@ -413,11 +343,11 @@ namespace MapiInspector
         /// <param name="autoCaseName">The test case name to parse</param>
         /// <param name="allRops">All ROPs contained in list</param>
         /// <returns>Parse result, true means success</returns>
-        public bool ParseCaptureFile(Session[] sessionsFromCore, string pathName, string autoCaseName, out List<string> allRops)
+        public bool ParseCaptureFile(Exchange[] exchanges, string pathName, string autoCaseName, out List<string> allRops)
         {
             var errorStringList = new List<string>();
             StringBuilder stringBuilder = new StringBuilder();
-            SessionExtensions.AllSessionsNavigator.Init(sessionsFromCore);
+            SessionExtensions.AllSessionsNavigator.Init(exchanges);
 
             DecodingContext decodingContext = new DecodingContext();
             Partial.ResetPartialParameters();
@@ -426,10 +356,7 @@ namespace MapiInspector
             int i = 0;
             foreach (var session in SessionExtensions.AllSessionsNavigator)
             {
-                if (session["VirtualID"] != null)
-                {
-                    ParsingSession = session;
-                }
+                ParsingSession = session;
                 if (IsMapihttpWithoutUI())
                 {
                     try
@@ -439,7 +366,7 @@ namespace MapiInspector
                         BaseHeaders = session.RequestHeaders;
                         object obj = ParseHTTPPayload(session, TrafficDirection.In, out byte[] bytes);
                         JsonResult += Utilities.ConvertCSharpToJson(i, isRequest: true, obj);
-                        if (session["X-ResponseCode"] == "0")
+                        if (session.ResponseHeaders["X-ResponseCode"] == "0")
                         {
                             object obj2 = ParseHTTPPayload(session, TrafficDirection.Out, out byte[] bytes2);
                             JsonResult += Utilities.ConvertCSharpToJson(i, isRequest: false, obj2);
@@ -447,7 +374,7 @@ namespace MapiInspector
                     }
                     catch (Exception ex)
                     {
-                        errorStringList.Add($"{errorStringList.Count + 1}. Error: Frame#{session["VirtualID"]} Error Message:{ex.Message}");
+                        errorStringList.Add($"{errorStringList.Count + 1}. Error: Exchange#{session.id} Error Message:{ex.Message}");
                     }
                     finally
                     {

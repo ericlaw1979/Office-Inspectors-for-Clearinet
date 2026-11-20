@@ -23,8 +23,8 @@ namespace MapiInspector
 			this.components = new System.ComponentModel.Container();
 			this.mapiTreeView = new System.Windows.Forms.TreeView();
 			this.splitContainer = new System.Windows.Forms.SplitContainer();
-			this.mapiHexBox = new Be.Windows.Forms.HexBox();
-			this.cropsHexBox = new Be.Windows.Forms.HexBox();
+			this.mapiHexBox = new Be.Windows.Forms.HttpHexBox();
+			this.cropsHexBox = new Be.Windows.Forms.HttpHexBox();
 			this.splitter = new System.Windows.Forms.Splitter();
 			this.searchTableLayoutPanel = new System.Windows.Forms.TableLayoutPanel();
 			this.searchTextBox = new System.Windows.Forms.TextBox();
@@ -74,7 +74,6 @@ namespace MapiInspector
 			// mapiHexBox
 			// 
 			this.mapiHexBox.AccessibleRole = System.Windows.Forms.AccessibleRole.ScrollBar;
-			this.mapiHexBox.BodyOffset = 0;
 			this.mapiHexBox.Dock = System.Windows.Forms.DockStyle.Fill;
 			this.mapiHexBox.Font = new System.Drawing.Font("Segoe UI", 10F);
 			this.mapiHexBox.HeaderColor = System.Drawing.Color.Maroon;
@@ -91,7 +90,6 @@ namespace MapiInspector
 			// 
 			// cropsHexBox
 			// 
-			this.cropsHexBox.BodyOffset = 1;
 			this.cropsHexBox.Dock = System.Windows.Forms.DockStyle.Fill;
 			this.cropsHexBox.Font = new System.Drawing.Font("Segoe UI", 10F);
 			this.cropsHexBox.HeaderColor = System.Drawing.Color.Maroon;
@@ -184,8 +182,8 @@ namespace MapiInspector
 
         private System.Windows.Forms.TreeView mapiTreeView;
         private System.Windows.Forms.SplitContainer splitContainer;
-        private Be.Windows.Forms.HexBox mapiHexBox;
-        private Be.Windows.Forms.HexBox cropsHexBox;
+        private Be.Windows.Forms.HttpHexBox mapiHexBox;
+        private Be.Windows.Forms.HttpHexBox cropsHexBox;
         private System.Windows.Forms.Splitter splitter;
         private TableLayoutPanel searchTableLayoutPanel;
         private System.Windows.Forms.TextBox searchTextBox;

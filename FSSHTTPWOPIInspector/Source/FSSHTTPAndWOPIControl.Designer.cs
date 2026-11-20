@@ -36,7 +36,7 @@ namespace FSSHTTPandWOPIInspector
             this.TreeView = new System.Windows.Forms.TreeView();
             this.RichTextBox = new System.Windows.Forms.RichTextBox();
             this.Container = new System.Windows.Forms.ContainerControl();
-            this.HexBox = new Be.Windows.Forms.HexBox();
+            this.HexBox = new Be.Windows.Forms.HttpHexBox();
             this.splitter = new System.Windows.Forms.Splitter();
             this.Container.SuspendLayout();
             this.SuspendLayout();
@@ -80,7 +80,6 @@ namespace FSSHTTPandWOPIInspector
             // HexBox
             // 
             this.HexBox.AccessibleRole = System.Windows.Forms.AccessibleRole.ScrollBar;
-            this.HexBox.BodyOffset = 0;
             this.HexBox.Dock = System.Windows.Forms.DockStyle.Fill;
             this.HexBox.Font = new System.Drawing.Font("Courier New", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.HexBox.HeaderColor = System.Drawing.Color.Maroon;
@@ -131,10 +130,10 @@ namespace FSSHTTPandWOPIInspector
 
         }
 
-        void CopyMethod(object sender, EventArgs e, Be.Windows.Forms.HexBox hexBox)
+        void CopyMethod(object sender, EventArgs e, Be.Windows.Forms.HttpHexBox hexBox)
         {
             byte[] targetBytes = new byte[hexBox.SelectionLength];
-            Array.Copy(hexBox.GetAllBytes(), hexBox.SelectionStart, targetBytes, 0, hexBox.SelectionLength);
+            Array.Copy(hexBox.ByteProvider.GetAllBytes(), hexBox.SelectionStart, targetBytes, 0, hexBox.SelectionLength);
             string hex = BitConverter.ToString(targetBytes).Replace("-", string.Empty);
             Clipboard.SetText(hex);
         }
@@ -189,7 +188,7 @@ namespace FSSHTTPandWOPIInspector
         private void FSSWOPI_CopyWithSpaces(object sender, EventArgs e)
         {
             byte[] targetBytes = new byte[HexBox.SelectionLength];
-            Array.Copy(HexBox.GetAllBytes(), HexBox.SelectionStart, targetBytes, 0, HexBox.SelectionLength);
+            Array.Copy(HexBox.ByteProvider.GetAllBytes(), HexBox.SelectionStart, targetBytes, 0, HexBox.SelectionLength);
 
             StringBuilder sb = new StringBuilder();
             int counter = 0;
@@ -206,7 +205,7 @@ namespace FSSHTTPandWOPIInspector
         private void FSSWOPI_CopyAsByteBlocks(object sender, EventArgs e)
         {
             byte[] targetBytes = new byte[HexBox.SelectionLength];
-            Array.Copy(HexBox.GetAllBytes(), HexBox.SelectionStart, targetBytes, 0, HexBox.SelectionLength);
+            Array.Copy(HexBox.ByteProvider.GetAllBytes(), HexBox.SelectionStart, targetBytes, 0, HexBox.SelectionLength);
 
             StringBuilder sb = new StringBuilder();
             int counter = 0;
@@ -225,7 +224,7 @@ namespace FSSHTTPandWOPIInspector
         private void FSSWOPI_CopyAsByteBlocksWithPrefix(object sender, EventArgs e)
         {
             byte[] targetBytes = new byte[HexBox.SelectionLength];
-            Array.Copy(HexBox.GetAllBytes(), HexBox.SelectionStart, targetBytes, 0, HexBox.SelectionLength);
+            Array.Copy(HexBox.ByteProvider.GetAllBytes(), HexBox.SelectionStart, targetBytes, 0, HexBox.SelectionLength);
 
             StringBuilder sb = new StringBuilder();
             sb.AppendLine("POSITION | 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F");
@@ -251,7 +250,7 @@ namespace FSSHTTPandWOPIInspector
         private void FSSWOPI_CopyAsCodeBlock(object sender, EventArgs e)
         {
             byte[] targetBytes = new byte[HexBox.SelectionLength];
-            Array.Copy(HexBox.GetAllBytes(), HexBox.SelectionStart, targetBytes, 0, HexBox.SelectionLength);
+            Array.Copy(HexBox.ByteProvider.GetAllBytes(), HexBox.SelectionStart, targetBytes, 0, HexBox.SelectionLength);
 
             StringBuilder sb = new StringBuilder("byte[] arrOutput = { ");
             int counter = 0;
@@ -272,7 +271,7 @@ namespace FSSHTTPandWOPIInspector
         private System.Windows.Forms.TreeView TreeView;
         private System.Windows.Forms.RichTextBox RichTextBox;
         private System.Windows.Forms.ContainerControl Container;
-        private Be.Windows.Forms.HexBox HexBox;
+        private Be.Windows.Forms.HttpHexBox HexBox;
         private System.Windows.Forms.Splitter splitter;
     }
 }

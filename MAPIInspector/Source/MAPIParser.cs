@@ -4,7 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using BlockParser;
-using Fiddler;
+using Clearinet;
+using Session = Clearinet.Exchange;
 using MAPIInspector;
 using MAPIInspector.Parsers;
 using Newtonsoft.Json;
@@ -16,8 +17,14 @@ namespace MapiInspector
     /// </summary>
     public class MAPIParser
     {
+        static MAPIParser()
+        {
+            CApp.OnLoadSAZ += AfterLoadSAZ;
+            CApp.AfterExchangeComplete += AfterExchangeComplete;
+        }
+
         /// <summary>
-        /// Gets or sets the parsing session in fiddler.
+        /// Gets or sets the parsing session in Clearinet.
         /// </summary>
         public static Session ParsingSession;
 
@@ -166,10 +173,10 @@ namespace MapiInspector
             switch (direction)
             {
                 case TrafficDirection.In:
-                    bytesFromHTTP = currentSession.requestBodyBytes;
+                    bytesFromHTTP = currentSession.RequestBody;
                     break;
                 case TrafficDirection.Out:
-                    bytesFromHTTP = currentSession.responseBodyBytes;
+                    bytesFromHTTP = currentSession.ResponseBody;
                     break;
                 default:
                     return Block.Create("Invalid traffic direction.");
@@ -190,16 +197,6 @@ namespace MapiInspector
             try
             {
                 if (direction == TrafficDirection.Out &&
-                    IsFromFiddlerCore(currentSession))
-                {
-                    if (currentSession["Transfer-Encoding"] != null &&
-                        currentSession["Transfer-Encoding"] == "chunked")
-                    {
-                        bytesFromHTTP = Utilities.GetPayloadFromChunkedBody(bytesFromHTTP);
-                        bytes = bytesFromHTTP;
-                    }
-                }
-                else if (direction == TrafficDirection.Out &&
                     currentSession.ResponseHeaders.Exists("Transfer-Encoding") &&
                     currentSession.ResponseHeaders["Transfer-Encoding"] == "chunked")
                 {
@@ -236,43 +233,27 @@ namespace MapiInspector
         /// <returns>Boole value indicates whether this session is MAPIHTTP layer message</returns>
         public static bool IsMapihttpSession(Session currentSession, TrafficDirection direction)
         {
-            if (currentSession != null)
+            if (currentSession == null)
             {
-                if (direction == TrafficDirection.In)
-                {
-                    return currentSession.RequestHeaders.ExistsAndContains("Content-Type", "application/mapi-http");
-                }
-                else if (direction == TrafficDirection.Out &&
-                    !IsFromFiddlerCore(currentSession))
-                {
-                    if (currentSession.ResponseHeaders.Exists("X-ResponseCode"))
-                    {
-                        string responseCode = currentSession.ResponseHeaders["X-ResponseCode"];
+                return false;
+            }
 
-                        if (responseCode == "0")
-                        {
-                            return currentSession.ResponseHeaders.ExistsAndContains("Content-Type", "application/mapi-http");
-                        }
-                        else if (responseCode != string.Empty)
-                        {
-                            return currentSession.ResponseHeaders.ExistsAndContains("Content-Type", "text/html");
-                        }
-                    }
-                }
-                else if (direction == TrafficDirection.Out &&
-                    currentSession["X-ResponseCode"] != null)
+            if (direction == TrafficDirection.In)
+            {
+                return currentSession.RequestHeaders.ExistsAndContains("Content-Type", "application/mapi-http");
+            }
+
+            if (direction == TrafficDirection.Out && currentSession.ResponseHeaders.Exists("X-ResponseCode"))
+            {
+                string responseCode = currentSession.ResponseHeaders["X-ResponseCode"];
+                if (responseCode == "0")
                 {
-                    string responseCode = currentSession["X-ResponseCode"];
-                    if (responseCode == "0")
-                    {
-                        return currentSession["Content-Type"] != null &&
-                            currentSession["Content-Type"] == "application/mapi-http";
-                    }
-                    else if (responseCode != string.Empty)
-                    {
-                        return currentSession["Content-Type"] != null &&
-                            currentSession["Content-Type"] == "text/html";
-                    }
+                    return currentSession.ResponseHeaders.ExistsAndContains("Content-Type", "application/mapi-http");
+                }
+
+                if (responseCode != string.Empty)
+                {
+                    return currentSession.ResponseHeaders.ExistsAndContains("Content-Type", "text/html");
                 }
             }
 
@@ -326,11 +307,7 @@ namespace MapiInspector
             string savedResult = string.Empty;
             object result = new object();
             Session thisSession = ParsingSession;
-            int thisSessionID = thisSession.id;
-            if (IsFromFiddlerCore(thisSession))
-            {
-                thisSessionID = int.Parse(thisSession["VirtualID"]);
-            }
+            int thisSessionID = GetSessionId(thisSession);
             if (sourceRopID == RopIdType.RopLogon)
             {
                 ParseRequestMessage(thisSession, out bytesForHexView, true);
@@ -508,11 +485,7 @@ namespace MapiInspector
             else if (sourceRopID == RopIdType.RopQueryRows || sourceRopID == RopIdType.RopFindRow || sourceRopID == RopIdType.RopExpandRow)
             {
                 Session currentSession = thisSession;
-                int currentSessionID = currentSession.id;
-                if (IsFromFiddlerCore(currentSession))
-                {
-                    currentSessionID = int.Parse(currentSession["VirtualID"]);
-                }
+                int currentSessionID = GetSessionId(currentSession);
 
                 var dic_QueryRows = new Dictionary<int, uint>();
                 var targetDic = new Dictionary<RopIdType, Dictionary<int, uint>>();
@@ -537,14 +510,7 @@ namespace MapiInspector
                         currentSession = currentSession.Previous();
                         while (currentSession != null)
                         {
-                            if (IsFromFiddlerCore(currentSession))
-                            {
-                                currentSessionID = int.Parse(currentSession["VirtualID"]);
-                            }
-                            else
-                            {
-                                currentSessionID = currentSession.id;
-                            }
+                            currentSessionID = GetSessionId(currentSession);
 
                             string currentServerPath = currentSession.RequestHeaders.RequestPath;
                             string currentProcessName = currentSession.LocalProcess;
@@ -616,11 +582,7 @@ namespace MapiInspector
             else if (sourceRopID == RopIdType.RopNotify)
             {
                 Session currentSession = thisSession;
-                int currentSessionID = currentSession.id;
-                if (IsFromFiddlerCore(currentSession))
-                {
-                    currentSessionID = int.Parse(currentSession["VirtualID"]);
-                }
+                int currentSessionID = GetSessionId(currentSession);
                 uint targetSessionID = 0;
                 var dic_Notify = new Dictionary<int, uint>();
                 var targetDic = new Dictionary<RopIdType, Dictionary<int, uint>>();
@@ -644,28 +606,14 @@ namespace MapiInspector
                     else
                     {
                         currentSession = thisSession.Previous();
-                        if (IsFromFiddlerCore(currentSession))
-                        {
-                            currentSessionID = int.Parse(currentSession["VirtualID"]);
-                        }
-                        else
-                        {
-                            currentSessionID = currentSession.id;
-                        }
-
+                        currentSessionID = GetSessionId(currentSession);
+ 
                         // isFound used to specify whether the setColumns for this notify has found.
                         bool isFound = false;
 
                         while (currentSession != null)
                         {
-                            if (IsFromFiddlerCore(currentSession))
-                            {
-                                currentSessionID = int.Parse(currentSession["VirtualID"]);
-                            }
-                            else
-                            {
-                                currentSessionID = currentSession.id;
-                            }
+                            currentSessionID = GetSessionId(currentSession);
 
                             string currentServerPath = currentSession.RequestHeaders.RequestPath;
                             string currentProcessName = currentSession.LocalProcess;
@@ -944,15 +892,11 @@ namespace MapiInspector
                 NeedToParseCROPSLayer = isLooper;
                 mapiRequest = ParseHTTPPayload(parsingSession, TrafficDirection.In, out byte[] bytesForHexView);
                 hexViewBytes = bytesForHexView;
-                int parsingSessionID = parsingSession.id;
-                if (IsFromFiddlerCore(parsingSession))
-                {
-                    parsingSessionID = int.Parse(parsingSession["VirtualID"]);
-                }
+                int parsingSessionID = GetSessionId(parsingSession);
 
                 if (mapiRequest != null)
                 {
-                    if (parsingSession.requestBodyBytes.Length != 0 &&
+                    if (parsingSession.RequestBody.Length != 0 &&
                         mapiRequest.GetType().Name == "ExecuteRequestBody" &&
                         requestDic != null &&
                         !requestDic.ContainsKey(parsingSessionID))
@@ -978,7 +922,7 @@ namespace MapiInspector
                             }
                         }
                     }
-                    else if (parsingSession.requestBodyBytes.Length != 0 &&
+                    else if (parsingSession.RequestBody.Length != 0 &&
                         mapiRequest.GetType().Name == "ExecuteRequestBody" &&
                         requestDic != null &&
                         requestDic.ContainsKey(parsingSessionID) &&
@@ -1009,111 +953,50 @@ namespace MapiInspector
         {
             Block mapiResponse = null;
             hexViewBytes = new byte[0];
-            if (!IsFromFiddlerCore(currentSession))
-            {
-                if (IsMapihttpSession(currentSession, TrafficDirection.Out) &&
-                    currentSession.ResponseHeaders["X-ResponseCode"] == "0")
-                {
-                    NeedToParseCROPSLayer = isLooper;
-                    mapiResponse = ParseHTTPPayload(currentSession, TrafficDirection.Out, out byte[] bytesForHexView);
-                    hexViewBytes = bytesForHexView;
-                    int parsingSessionID = currentSession.id;
-                    if (IsFromFiddlerCore(currentSession))
-                    {
-                        parsingSessionID = int.Parse(currentSession["VirtualID"]);
-                    }
-                    if (mapiResponse != null)
-                    {
-                        if (currentSession.responseBodyBytes.Length != 0 &&
-                            mapiResponse.GetType().Name == "ExecuteResponseBody" &&
-                            responseDic != null &&
-                            !responseDic.ContainsKey(parsingSessionID))
-                        {
-                            if (!IsOnlyGetServerHandle)
-                            {
-                                responseDic.Add(parsingSessionID, mapiResponse);
-                                if (!responseBytesForHexview.ContainsKey(parsingSessionID))
-                                {
-                                    responseBytesForHexview.Add(parsingSessionID, bytesForHexView);
-                                }
-                            }
-                            else
-                            {
-                                if (!handleGetDic.ContainsKey(parsingSessionID))
-                                {
-                                    if ((mapiResponse as ExecuteResponseBody).RopBuffer != null &&
-                                        (mapiResponse as ExecuteResponseBody).RopBuffer.RgbOutputBuffers.Count() != 0)
-                                    {
-                                        handleGetDic.Add(parsingSessionID, ((ROPBufferServerObjectTable)(mapiResponse as ExecuteResponseBody).RopBuffer.RgbOutputBuffers[0].Payload).ServerObjectHandleTable);
-                                    }
-                                }
-                            }
-                        }
-                        else if (currentSession.responseBodyBytes.Length != 0 &&
-                            mapiResponse.GetType().Name == "ExecuteResponseBody" &&
-                            responseDic != null &&
-                            responseDic.ContainsKey(parsingSessionID) &&
-                            !IsOnlyGetServerHandle)
-                        {
-                            responseDic.Remove(parsingSessionID);
-                            responseDic.Add(parsingSessionID, mapiResponse);
-                        }
-                    }
-                }
-            }
-            else
-            {
-                if (IsMapihttpSession(currentSession, TrafficDirection.Out) &&
-                    currentSession["X-ResponseCode"] == "0")
-                {
-                    NeedToParseCROPSLayer = isLooper;
-                    mapiResponse = ParseHTTPPayload(currentSession, TrafficDirection.Out, out byte[] bytesForHexView);
-                    hexViewBytes = bytesForHexView;
-                    int parsingSessionID = currentSession.id;
-                    if (currentSession.id == 0)
-                    {
-                        parsingSessionID = int.Parse(currentSession["VirtualID"]);
-                    }
-                    if (mapiResponse != null)
-                    {
-                        if (currentSession.responseBodyBytes.Length != 0 &&
-                            mapiResponse.GetType().Name == "ExecuteResponseBody" &&
-                            responseDic != null &&
-                            !responseDic.ContainsKey(parsingSessionID))
-                        {
-                            if (!IsOnlyGetServerHandle)
-                            {
-                                responseDic.Add(parsingSessionID, mapiResponse);
-                                if (!requestBytesForHexview.ContainsKey(parsingSessionID))
-                                {
-                                    requestBytesForHexview.Add(parsingSessionID, bytesForHexView);
-                                }
-                            }
-                            else
-                            {
-                                if (!handleGetDic.ContainsKey(parsingSessionID))
-                                {
-                                    if ((mapiResponse as ExecuteResponseBody).RopBuffer != null &&
-                                        (mapiResponse as ExecuteResponseBody).RopBuffer.RgbOutputBuffers.Count() != 0)
-                                    {
-                                        handleGetDic.Add(parsingSessionID, ((ROPBufferServerObjectTable)(mapiResponse as ExecuteResponseBody).RopBuffer.RgbOutputBuffers[0].Payload).ServerObjectHandleTable);
-                                    }
-                                }
-                            }
-                        }
-                        else if (currentSession.responseBodyBytes.Length != 0 &&
-                            mapiResponse.GetType().Name == "ExecuteResponseBody" &&
-                            responseDic != null &&
-                            responseDic.ContainsKey(parsingSessionID) &&
-                            !IsOnlyGetServerHandle)
-                        {
-                            responseDic.Remove(parsingSessionID);
-                            responseDic.Add(parsingSessionID, mapiResponse);
-                        }
-                    }
-                }
-            }
 
+            if (IsMapihttpSession(currentSession, TrafficDirection.Out) &&
+                currentSession.ResponseHeaders["X-ResponseCode"] == "0")
+            {
+                NeedToParseCROPSLayer = isLooper;
+                mapiResponse = ParseHTTPPayload(currentSession, TrafficDirection.Out, out byte[] bytesForHexView);
+                hexViewBytes = bytesForHexView;
+                int parsingSessionID = GetSessionId(currentSession);
+                if (mapiResponse != null)
+                {
+                    if (currentSession.ResponseBody.Length != 0 &&
+                        mapiResponse.GetType().Name == "ExecuteResponseBody" &&
+                        responseDic != null &&
+                        !responseDic.ContainsKey(parsingSessionID))
+                    {
+                        if (!IsOnlyGetServerHandle)
+                        {
+                            responseDic.Add(parsingSessionID, mapiResponse);
+                            if (!responseBytesForHexview.ContainsKey(parsingSessionID))
+                            {
+                                responseBytesForHexview.Add(parsingSessionID, bytesForHexView);
+                            }
+                        }
+                        else if (!handleGetDic.ContainsKey(parsingSessionID))
+                        {
+                            var executeResponse = mapiResponse as ExecuteResponseBody;
+                            if (executeResponse.RopBuffer != null && executeResponse.RopBuffer.RgbOutputBuffers.Count() != 0)
+                            {
+                                handleGetDic.Add(parsingSessionID,
+                                    ((ROPBufferServerObjectTable)executeResponse.RopBuffer.RgbOutputBuffers[0].Payload).ServerObjectHandleTable);
+                            }
+                        }
+                    }
+                    else if (currentSession.ResponseBody.Length != 0 &&
+                        mapiResponse.GetType().Name == "ExecuteResponseBody" &&
+                        responseDic != null &&
+                        responseDic.ContainsKey(parsingSessionID) &&
+                        !IsOnlyGetServerHandle)
+                    {
+                        responseDic.Remove(parsingSessionID);
+                        responseDic.Add(parsingSessionID, mapiResponse);
+                    }
+                }
+            }
 
             if (isLooper)
             {
@@ -1141,10 +1024,10 @@ namespace MapiInspector
             switch (direction)
             {
                 case TrafficDirection.In:
-                    bytesFromHTTP = currentSession.requestBodyBytes;
+                    bytesFromHTTP = currentSession.RequestBody;
                     break;
                 case TrafficDirection.Out:
-                    bytesFromHTTP = currentSession.responseBodyBytes;
+                    bytesFromHTTP = currentSession.ResponseBody;
                     break;
                 default:
                     return Block.Create("Invalid traffic direction.");
@@ -1169,16 +1052,6 @@ namespace MapiInspector
             try
             {
                 if (direction == TrafficDirection.Out &&
-                    IsFromFiddlerCore(currentSession))
-                {
-                    if (currentSession["Transfer-Encoding"] != null &&
-                        currentSession["Transfer-Encoding"] == "chunked")
-                    {
-                        bytesFromHTTP = Utilities.GetPayloadFromChunkedBody(bytesFromHTTP);
-                        bytes = bytesFromHTTP;
-                    }
-                }
-                else if (direction == TrafficDirection.Out &&
                     currentSession.ResponseHeaders.Exists("Transfer-Encoding") &&
                     currentSession.ResponseHeaders["Transfer-Encoding"] == "chunked")
                 {
@@ -1393,30 +1266,32 @@ namespace MapiInspector
         }
 
         /// <summary>
-        /// Reset public parameters.
+        /// Reset MAPI parser state after Clearinet loads an archive.
         /// </summary>
-        /// <param name="sender">The source of the event</param>
-        /// <param name="e">A EventArgs that contains the event data.</param>
-        public void AfterCallDoImport(object sender, EventArgs e)
+        private static void AfterLoadSAZ(object sender, CApp.ReadSAZEventArgs e)
         {
-            ResetHandleInformation();
-            Partial.ResetPartialContextInformation();
-            Partial.ResetPartialParameters();
+            CApp.UIInvokeAsync(() =>
+            {
+                ResetHandleInformation();
+                Partial.ResetPartialContextInformation();
+                Partial.ResetPartialParameters();
+                SessionExtensions.AllSessionsNavigator.Init(CApp.UI.GetAllExchanges());
+            });
+        }
+
+        private static void AfterExchangeComplete(Exchange exchange)
+        {
+            CApp.UIInvokeAsync(() =>
+                SessionExtensions.AllSessionsNavigator.Init(CApp.UI.GetAllExchanges()));
         }
 
         /// <summary>
-        /// Method to judge whether a session is from FiddlerCore or FiddlerExe
+        /// Converts Clearinet's 64-bit session identifier for the parser's int-keyed state maps.
+        /// Session IDs above Int32.MaxValue are rejected rather than colliding after truncation.
         /// </summary>
-        /// <param name="currentSession">The session to be judged</param>
-        /// <returns>Boole value indicates whether this session is from FiddlerCore or not</returns>
-        public static bool IsFromFiddlerCore(Session session)
+        public static int GetSessionId(Session session)
         {
-            bool result = false;
-            if (session.id == 0)
-            {
-                result = true;
-            }
-            return result;
+            return checked((int)session.id);
         }
 
         /// <summary>
@@ -1511,7 +1386,7 @@ namespace MapiInspector
 
                         var mapiFrame = new MAPIFrame
                         {
-                            Frame = session.id,
+                            Frame = GetSessionId(session),
                             Time = session.Timers.ClientBeginRequest.ToString("yyyy-MM-dd HH:mm:ss.fff"),
                             Url = session.url,
                             LocalProcess = session.LocalProcess,
@@ -1524,7 +1399,7 @@ namespace MapiInspector
                     }
                     catch (Exception ex)
                     {
-                        errorStringList.Add($"{errorStringList.Count + 1}. Error: Frame#{session["VirtualID"]} Error Message:{ex.Message}");
+                        errorStringList.Add($"{errorStringList.Count + 1}. Error: Frame#{GetSessionId(session)} Error Message:{ex.Message}");
                     }
                     finally
                     {

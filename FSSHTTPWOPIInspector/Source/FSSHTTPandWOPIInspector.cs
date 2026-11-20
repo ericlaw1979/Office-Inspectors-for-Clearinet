@@ -1,6 +1,5 @@
 ﻿using System.IO;
 using System.Windows.Forms;
-using Fiddler;
 using FSSHTTPandWOPIInspector.Parsers;
 using Be.Windows.Forms;
 using System;
@@ -9,11 +8,18 @@ using System.Text.RegularExpressions;
 using System.Xml.Serialization;
 using System.Xml;
 using System.Text;
+using Clearinet;
 
 namespace FSSHTTPandWOPIInspector
 {
-    public abstract class FSSHTTPandWOPIInspector : Inspector2
+    public class FSSHTTPandWOPIInspector
     {
+        private readonly TrafficDirection direction;
+
+        public FSSHTTPandWOPIInspector(TrafficDirection direction)
+        {
+            this.direction = direction;
+        }
         /// <summary>
         /// Gets or sets the Tree View control where displayed the FSSHTTPandWOPI message.
         /// </summary>
@@ -34,10 +40,7 @@ namespace FSSHTTPandWOPIInspector
         /// </summary>
         public bool bReadOnly { get; set; }
 
-        /// <summary>
-        /// Gets or sets the Session object to pull frame data from Fiddler.
-        /// </summary>
-        internal Session session { get; set; }
+        internal Exchange session { get; set; }
 
         /// <summary>
         /// Gets or sets the raw bytes from the frame
@@ -77,20 +80,7 @@ namespace FSSHTTPandWOPIInspector
         /// <summary>
         /// Gets the direction of the traffic
         /// </summary>
-        public TrafficDirection Direction
-        {
-            get
-            {
-                if (this is IRequestInspector2)
-                {
-                    return TrafficDirection.In;
-                }
-                else
-                {
-                    return TrafficDirection.Out;
-                }
-            }
-        }
+        public TrafficDirection Direction => direction;
 
         /// <summary>
         /// Gets whether the message is FSSHTTP protocol message.
@@ -114,19 +104,13 @@ namespace FSSHTTPandWOPIInspector
         {
             get
             {
-                if (this.session != null && (this.session.fullUrl.ToLower().Contains("/_vti_bin/wopi.ashx")) || this.session.fullUrl.ToLower().EndsWith("hosting/discovery")) // /microsoft-server-activesync
-                {
-                    return true;
-                }
-                return false;
+                string url = session?.fullUrl;
+                return url != null && (url.IndexOf("/_vti_bin/wopi.ashx", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    url.EndsWith("hosting/discovery", StringComparison.OrdinalIgnoreCase));
             }
         }
 
-        /// <summary>
-        /// Called by Fiddler to add the FSSHTTPandWOPI inspector tab
-        /// </summary>
-        /// <param name="o">The tab control for the inspector</param>
-        public override void AddToTab(TabPage o)
+        public void AddToTab(TabPage o)
         {
             o.Text = "FSSHTTPandWOPI";
             this.FSSHTTPandWOPIControl = new FSSHTTPandWOPIControl();
@@ -143,7 +127,7 @@ namespace FSSHTTPandWOPIInspector
         /// Method that returns a sorting hint
         /// </summary>
         /// <returns>An integer indicating where we should order ourselves</returns>
-        public override int GetOrder()
+        public int GetOrder()
         {
             return 0;
         }
@@ -166,52 +150,13 @@ namespace FSSHTTPandWOPIInspector
             //this.FSSHTTPandWOPIControl.FSSHTTPandWOPISplit.Visible = false;
         }
 
-        /// <summary>
-        /// Called by Fiddler to determine how confident this inspector is that it can
-        /// decode the data.  This is only called when the user hits enter or double-
-        /// clicks a session.  
-        /// If we score the highest out of the other inspectors, Fiddler will open this
-        /// inspector's tab and then call AssignSession.
-        /// </summary>
-        /// <param name="oS">the session object passed by Fiddler</param>
-        /// <returns>Int between 0-100 with 100 being the most confident</returns>
-        public override int ScoreForSession(Session oS)
+        public int ScoreForExchange(Exchange exchange)
         {
-            if (null == this.session)
-            {
-                this.session = oS;
-            }
-
-            if (null == this.BaseHeaders)
-            {
-                if (this is IRequestInspector2)
-                {
-                    this.BaseHeaders = this.session.oRequest.headers;
-                }
-                else
-                {
-                    this.BaseHeaders = this.session.oResponse.headers;
-                }
-            }
-
-            if (this.IsFSSHTTP || this.IsWOPI)
-            {
-                return 100;
-            }
-            else
-            {
-                return 0;
-            }
-        }
-
-        /// <summary>
-        /// This is called every time this inspector is shown
-        /// </summary>
-        /// <param name="oS">Session object passed by Fiddler</param>
-        public override void AssignSession(Session oS)
-        {
-            this.session = oS;
-            base.AssignSession(oS);
+            session = exchange;
+            BaseHeaders = direction == TrafficDirection.In
+                ? (HTTPHeaders)exchange.RequestHeaders
+                : exchange.ResponseHeaders;
+            return IsFSSHTTP || IsWOPI ? 100 : 0;
         }
 
         /// <summary>
@@ -228,6 +173,13 @@ namespace FSSHTTPandWOPIInspector
                 this.rawBody = value;
                 this.UpdateView();
             }
+        }
+
+        public void Assign(HTTPHeaders headers, byte[] body, bool readOnly)
+        {
+            BaseHeaders = headers;
+            bReadOnly = readOnly;
+            this.body = body;
         }
 
         /// <summary>
@@ -362,7 +314,7 @@ namespace FSSHTTPandWOPIInspector
                             {
                                 if (requestHeaders.Exists("Content-Encoding") && requestHeaders["Content-Encoding"] == "gzip")
                                 {
-                                    cellreq = Fiddler.Utilities.GzipExpand(cellreq);
+                                    cellreq = Clearinet.Utilities.GzipExpand(cellreq);
                                     ms = new MemoryStream(cellreq);
                                 }
                                 else
@@ -383,7 +335,7 @@ namespace FSSHTTPandWOPIInspector
                             {
                                 if (requestHeaders.Exists("Content-Encoding") && requestHeaders["Content-Encoding"] == "gzip")
                                 {
-                                    cellreq = Fiddler.Utilities.GzipExpand(cellreq);
+                                    cellreq = Clearinet.Utilities.GzipExpand(cellreq);
                                     string req_sub = System.Text.Encoding.UTF8.GetString(cellreq);
                                     req = string.Format("{0}{1}{2}", @"<Body>", req_sub, "</Body>");
                                 }
@@ -429,7 +381,7 @@ namespace FSSHTTPandWOPIInspector
                 }
                 else
                 {
-                    string status = this.session.ResponseHeaders.HTTPResponseStatus.Replace(" " + this.session.ResponseHeaders.StatusDescription, string.Empty);
+                    string status = this.session.ResponseHeaders.HTTPResponseStatus.Split(' ')[0];
                     if (Convert.ToUInt32(status) != 200)// the status is not success
                         return null;
 
@@ -467,7 +419,7 @@ namespace FSSHTTPandWOPIInspector
                                 MemoryStream ms;
                                 if (responseHeaders.Exists("Content-Encoding") && responseHeaders["Content-Encoding"] == "gzip")
                                 {
-                                    cellres = Fiddler.Utilities.GzipExpand(cellres);
+                                    cellres = Clearinet.Utilities.GzipExpand(cellres);
                                     string res_sub = System.Text.Encoding.UTF8.GetString(cellres);
                                     res = string.Format("{0}{1}{2}", @"<Body>", res_sub, "</Body>");
                                 }
@@ -781,6 +733,12 @@ namespace FSSHTTPandWOPIInspector
         /// </summary>
         private void UpdateView()
         {
+            if (FSSHTTPandWOPIControl != null && FSSHTTPandWOPIControl.InvokeRequired)
+            {
+                CApp.UIInvokeAsync(UpdateView);
+                return;
+            }
+
             this.Clear();
             object parserResult;
 
@@ -788,15 +746,15 @@ namespace FSSHTTPandWOPIInspector
             {
                 if (this.Direction == TrafficDirection.In)
                 {
-                    if (this.session.requestBodyBytes.Length == 0)
+                    if (this.session.RequestBody.Length == 0)
                         return;
-                    parserResult = this.ParseHTTPPayloadForFSSHTTP(this.session.ResponseHeaders, this.session.requestBodyBytes, TrafficDirection.In);
+                    parserResult = this.ParseHTTPPayloadForFSSHTTP(this.session.ResponseHeaders, this.session.RequestBody, TrafficDirection.In);
                 }
                 else
                 {
-                    if (this.session.responseBodyBytes.Length == 0)
+                    if (this.session.ResponseBody.Length == 0)
                         return;
-                    parserResult = this.ParseHTTPPayloadForFSSHTTP(this.session.ResponseHeaders, this.session.responseBodyBytes, TrafficDirection.Out);
+                    parserResult = this.ParseHTTPPayloadForFSSHTTP(this.session.ResponseHeaders, this.session.ResponseBody, TrafficDirection.Out);
                 }
                 DisplayObject(parserResult, string.Empty);
             }
@@ -811,11 +769,11 @@ namespace FSSHTTPandWOPIInspector
                 }
                 if (this.Direction == TrafficDirection.In)
                 {
-                    parserResult = this.ParseHTTPPayloadForWOPI(this.session.RequestHeaders, this.session.ResponseHeaders, Url, this.session.requestBodyBytes, out ropNameforBinaryStructure, TrafficDirection.In);
+                    parserResult = this.ParseHTTPPayloadForWOPI(this.session.RequestHeaders, this.session.ResponseHeaders, Url, this.session.RequestBody, out ropNameforBinaryStructure, TrafficDirection.In);
                 }
                 else
                 {
-                    parserResult = this.ParseHTTPPayloadForWOPI(this.session.RequestHeaders, this.session.ResponseHeaders, Url, this.session.responseBodyBytes, out ropNameforBinaryStructure, TrafficDirection.Out);
+                    parserResult = this.ParseHTTPPayloadForWOPI(this.session.RequestHeaders, this.session.ResponseHeaders, Url, this.session.ResponseBody, out ropNameforBinaryStructure, TrafficDirection.Out);
                 }
                 DisplayObject(parserResult, ropNameforBinaryStructure);
             }

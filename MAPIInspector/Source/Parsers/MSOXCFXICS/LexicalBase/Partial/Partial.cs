@@ -1,5 +1,6 @@
-using BlockParser;
-using Fiddler;
+﻿using BlockParser;
+using Clearinet;
+using Session = Clearinet.Exchange;
 using MapiInspector;
 using System;
 using System.Collections.Generic;
@@ -190,11 +191,7 @@ namespace MAPIInspector.Parsers
             Block obj = null;
             bytes = bytesForHexView;
             Session thisSession = MAPIParser.ParsingSession;
-            int thisSessionID = thisSession.id;
-            if (MAPIParser.IsFromFiddlerCore(thisSession))
-            {
-                thisSessionID = int.Parse(thisSession["VirtualID"]);
-            }
+            int thisSessionID = MAPIParser.GetSessionId(thisSession);
 
             if (ropID == RopIdType.RopFastTransferSourceGetBuffer)
             {
@@ -220,11 +217,7 @@ namespace MAPIInspector.Parsers
                 else
                 {
                     var currentSession = SessionExtensions.AllSessionsNavigator.First();
-                    int currentSessionID = currentSession.id;
-                    if (MAPIParser.IsFromFiddlerCore(currentSession))
-                    {
-                        currentSessionID = int.Parse(currentSession["VirtualID"]);
-                    }
+                    int currentSessionID = MAPIParser.GetSessionId(currentSession);
                     int sessionGetContextCount = HandleWithSessionGetContextInformation.Count;
 
                     if (sessionGetContextCount > 0 &&
@@ -261,14 +254,7 @@ namespace MAPIInspector.Parsers
 
                             currentSession = PartialGetSession.Next();
                         }
-                        if (MAPIParser.IsFromFiddlerCore(currentSession))
-                        {
-                            currentSessionID = int.Parse(currentSession["VirtualID"]);
-                        }
-                        else
-                        {
-                            currentSessionID = currentSession.id;
-                        }
+                        currentSessionID = MAPIParser.GetSessionId(currentSession);
                     }
 
                     string serverurl = thisSession.RequestHeaders.RequestPath;
@@ -317,17 +303,8 @@ namespace MAPIInspector.Parsers
 
                         currentSession = currentSession.Next();
 
-                        if (currentSessionID == currentSession.id ||
-                            (currentSession["VirtualID"] != null &&
-                            currentSessionID == int.Parse(currentSession["VirtualID"]))) break;
-                        if (MAPIParser.IsFromFiddlerCore(currentSession))
-                        {
-                            currentSessionID = int.Parse(currentSession["VirtualID"]);
-                        }
-                        else
-                        {
-                            currentSessionID = currentSession.id;
-                        }
+                        if (currentSessionID == MAPIParser.GetSessionId(currentSession)) break;
+                        currentSessionID = MAPIParser.GetSessionId(currentSession);
                     }
 
                     if (!DecodingContext.PartialInformationReady.ContainsKey(thisSessionID))
@@ -384,11 +361,7 @@ namespace MAPIInspector.Parsers
                 else
                 {
                     var currentSession = SessionExtensions.AllSessionsNavigator.First();
-                    int currentSessionID = currentSession.id;
-                    if (MAPIParser.IsFromFiddlerCore(currentSession))
-                    {
-                        currentSessionID = int.Parse(currentSession["VirtualID"]);
-                    }
+                    int currentSessionID = MAPIParser.GetSessionId(currentSession);
                     if (ropID == RopIdType.RopFastTransferDestinationPutBuffer)
                     {
                         int sessionPutContextCount = HandleWithSessionPutContextInformation.Count;
@@ -427,14 +400,7 @@ namespace MAPIInspector.Parsers
                                 currentSession = PartialPutSession.Next();
                             }
 
-                            if (MAPIParser.IsFromFiddlerCore(currentSession))
-                            {
-                                currentSessionID = int.Parse(currentSession["VirtualID"]);
-                            }
-                            else
-                            {
-                                currentSessionID = currentSession.id;
-                            }
+                            currentSessionID = MAPIParser.GetSessionId(currentSession);
                         }
                     }
                     else
@@ -475,14 +441,7 @@ namespace MAPIInspector.Parsers
                                 currentSession = PartialPutExtendSession.Next();
                             }
 
-                            if (MAPIParser.IsFromFiddlerCore(currentSession))
-                            {
-                                currentSessionID = int.Parse(currentSession["VirtualID"]);
-                            }
-                            else
-                            {
-                                currentSessionID = currentSession.id;
-                            }
+                            currentSessionID = MAPIParser.GetSessionId(currentSession);
                         }
                     }
 
@@ -557,14 +516,7 @@ namespace MAPIInspector.Parsers
                         }
 
                         currentSession = currentSession.Next();
-                        if (MAPIParser.IsFromFiddlerCore(currentSession))
-                        {
-                            currentSessionID = int.Parse(currentSession["VirtualID"]);
-                        }
-                        else
-                        {
-                            currentSessionID = currentSession.id;
-                        }
+                        currentSessionID = MAPIParser.GetSessionId(currentSession);
                     }
 
                     if (!DecodingContext.PartialInformationReady.ContainsKey(thisSessionID))

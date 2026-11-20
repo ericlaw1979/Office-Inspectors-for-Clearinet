@@ -33,5 +33,4 @@ using System.Runtime.InteropServices;
 // [assembly: AssemblyVersion("1.0.*")]
 [assembly: AssemblyVersion("1.0.0.0")]
 [assembly: AssemblyFileVersion("1.0.0.0")]
-
-[assembly: Fiddler.RequiredVersion("2.4.4.5")]
+[assembly: Clearinet.RequiredVersion("0.1.0.4")]
